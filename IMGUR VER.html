@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>格納庫配置シミュレーターIMGUR VER</title>
+
+<style>
+body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; background: #f4f4f4; margin: 0; padding: 10px; }
+#controls { margin-bottom: 15px; padding: 15px; background: white; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); width: 95%; max-width: 1000px; }
+
+.btn-group { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
+
+button {
+padding: 15px 20px;
+font-size: 16px;
+cursor: pointer;
+font-weight: bold;
+border-radius: 8px;
+border: 1px solid #ccc;
+background: #fff;
+transition: 0.2s;
+-webkit-appearance: none;
+}
+
+button:active { background: #3498db; color: white; }
+
+canvas {
+border: 3px solid #333;
+background: #fff;
+box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+touch-action: none;
+max-width: 100%;
+height: auto;
+}
+
+.info { font-size: 0.85em; color: #2c3e50; margin-top: 10px; line-height: 1.6; }
+.highlight { color: #e67e22; font-weight: bold; }
+</style>
+</head>
+
+<body>
+
+<div id="controls">
+<strong>機体追加:</strong>
+
+<div class="btn-group">
+<button onclick="addAircraft('AW109')">AW109</button>
+<button onclick="addAircraft('A36')">A36</button>
+<button onclick="addAircraft('C208B')">C208B</button>
+<button onclick="addAircraft('AS350')">AS350</button>
+<button onclick="addAircraft('CJ1')">CJ1</button>
+<button onclick="addAircraft('CJ2')">CJ2</button>
+<button onclick="addAircraft('KingAir')">KingAir</button>
+</div>
+
+<div class="info">
+操作：ドラッグで移動 /
+<span class="highlight">青丸ドラッグで回転</span>
+</div>
+
+</div>
+
+<canvas id="hangarCanvas"></canvas>
+
+<script>
+const canvas = document.getElementById('hangarCanvas');
+const ctx = canvas.getContext('2d');
+
+const scale = 0.025;
+const W = 42000;
+const H = 33000;
+
+canvas.width = W * scale;
+canvas.height = H * scale;
+
+let aircrafts = [];
+let selectedAircraft = null;
+let isRotating = false;
+let offset = { x: 0, y: 0 };
+
+const aircraftSpecs = {
+  AW109: {
+    length: 11648,
+    width: 7758,
+    color: '#9b59b6',
+    image: '' // ← ここにImgur直リンクを入れる
+  },
+  A36: {
+    length: 8400,
+    width: 10200,
+    color: '#3498db',
+    image: 'https://i.imgur.com/8ZymSyX.jpg'
+  },
+  C208B: {
+    length: 12700,
+    width: 15900,
+    color: '#f1c40f',
+    image: '' // ← ここ
+  },
+  AS350: {
+    length: 12940,
+    width: 10700,
+    color: '#2ecc71',
+    image: '' // ← ここ
+  },
+  CJ1: {
+    length: 12980,
+    width: 14140,
+    color: '#e67e22',
+    image: '' // ← ここ
+  },
+  CJ2: {
+    length: 14530,
+    width: 15170,
+    color: '#d35400',
+    image: '' // ← ここ
+  },
+  KingAir: {
+    length: 14220,
+    width: 17650,
+    color: '#e74c3c',
+    image: '' // ← ここ
+  }
+};
+
+const images = {};
+
+function preloadImages() {
+  for (let key in aircraftSpecs) {
+    const spec = aircraftSpecs[key];
+
+    if (!spec.image) {
+      console.warn(`画像URL未設定: ${key}`);
+      continue;
+    }
+
+    images[key] = new Image();
+    images[key].src = spec.image;
+    images[key].onload = () => draw();
+  }
+}
+
+function addAircraft(model) {
+  const spec = aircraftSpecs[model];
+  aircrafts.push({
+    model: model,
+    w: spec.width * scale,
+    h: spec.length * scale,
+    x: canvas.width / 2,
+    y: canvas.height / 2,
+    angle: 0,
+    color: spec.color
+  });
+  draw();
+}
+
+function drawHangar() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  ctx.strokeStyle = '#e0e0e0';
+  ctx.lineWidth = 1;
+
+  for (let x = 6000; x <= W; x += 6000) {
+    ctx.beginPath();
+    ctx.moveTo(x * scale, 0);
+    ctx.lineTo(x * scale, canvas.height);
+    ctx.stroke();
+  }
+
+  const yLines = [1980, 6183, 6530, 5627, 9240, 12853, 16465, 20078, 23690, 27268, 30916];
+
+  yLines.forEach(y => {
+    ctx.beginPath();
+    ctx.moveTo(0, y * scale);
+    ctx.lineTo(canvas.width, y * scale);
+    ctx.stroke();
+  });
+
+  ctx.strokeStyle = '#ffa500';
+  ctx.lineWidth = 2;
+
+  ctx.beginPath();
+  ctx.moveTo(0, 23690 * scale);
+  ctx.lineTo(canvas.width, 23690 * scale);
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(28380 * scale, 16500 * scale);
+  ctx.lineTo(canvas.width, 16500 * scale);
+  ctx.stroke();
+
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 3;
+
+  ctx.strokeRect(0, 28727 * scale, 6079 * scale, (H - 28727) * scale);
+
+  ctx.strokeStyle = 'red';
+  ctx.lineWidth = 5;
+
+  ctx.beginPath();
+  ctx.moveTo(canvas.width - 2, 0);
+  ctx.lineTo(canvas.width - 2, 6252 * scale);
+
+  ctx.moveTo(canvas.width - 2, canvas.height);
+  ctx.lineTo(canvas.width - 2, canvas.height - 6252 * scale);
+
+  ctx.stroke();
+}
+
+function draw() {
+  drawHangar();
+
+  aircrafts.forEach(ac => {
+    const img = images[ac.model];
+
+    ctx.save();
+    ctx.translate(ac.x, ac.y);
+    ctx.rotate(ac.angle * Math.PI / 180);
+
+    if (img && img.complete && img.naturalWidth !== 0) {
+      ctx.drawImage(img, -ac.w / 2, -ac.h / 2, ac.w, ac.h);
+    } else {
+      ctx.fillStyle = ac.color + "99";
+      ctx.fillRect(-ac.w / 2, -ac.h / 2, ac.w, ac.h);
+
+      ctx.fillStyle = "#000";
+      ctx.font = "bold 10px sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(ac.model, 0, 5);
+    }
+
+    const handleDist = ac.h / 2 + 20;
+
+    ctx.beginPath();
+    ctx.moveTo(0, -ac.h / 2);
+    ctx.lineTo(0, -handleDist);
+    ctx.strokeStyle = "#3498db";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(0, -handleDist, 10, 0, Math.PI * 2);
+    ctx.fillStyle = "#3498db";
+    ctx.fill();
+
+    ctx.restore();
+  });
+}
+
+canvas.onmousedown = (e) => down(e.offsetX, e.offsetY);
+canvas.onmousemove = (e) => move(e.offsetX, e.offsetY);
+canvas.onmouseup = () => { selectedAircraft = null; isRotating = false; };
+
+canvas.addEventListener('touchstart', (e) => {
+  e.preventDefault();
+  const t = e.touches[0];
+  const r = canvas.getBoundingClientRect();
+  down(t.clientX - r.left, t.clientY - r.top);
+}, { passive: false });
+
+canvas.addEventListener('touchmove', (e) => {
+  e.preventDefault();
+  const t = e.touches[0];
+  const r = canvas.getBoundingClientRect();
+  move(t.clientX - r.left, t.clientY - r.top);
+}, { passive: false });
+
+canvas.addEventListener('touchend', () => {
+  selectedAircraft = null;
+  isRotating = false;
+});
+
+function getTarget(mx, my) {
+  const rect = canvas.getBoundingClientRect();
+  const bx = mx * (canvas.width / rect.width);
+  const by = my * (canvas.height / rect.height);
+
+  for (let i = aircrafts.length - 1; i >= 0; i--) {
+    const ac = aircrafts[i];
+    const dx = bx - ac.x;
+    const dy = by - ac.y;
+    const rad = -ac.angle * Math.PI / 180;
+    const rx = dx * Math.cos(rad) - dy * Math.sin(rad);
+    const ry = dx * Math.sin(rad) + dy * Math.cos(rad);
+    const handleY = -ac.h / 2 - 20;
+
+    if (Math.sqrt(rx * rx + (ry - handleY) ** 2) < 20) return { ac, type: 'rotate' };
+    if (Math.abs(rx) < ac.w / 2 && Math.abs(ry) < ac.h / 2) return { ac, type: 'move' };
+  }
+  return null;
+}
+
+function down(x, y) {
+  const target = getTarget(x, y);
+  if (target) {
+    selectedAircraft = target.ac;
+    isRotating = target.type === 'rotate';
+
+    const rect = canvas.getBoundingClientRect();
+    const bx = x * (canvas.width / rect.width);
+    const by = y * (canvas.height / rect.height);
+
+    offset.x = bx - selectedAircraft.x;
+    offset.y = by - selectedAircraft.y;
+
+    aircrafts.push(aircrafts.splice(aircrafts.indexOf(selectedAircraft), 1)[0]);
+  }
+  draw();
+}
+
+function move(x, y) {
+  if (!selectedAircraft) return;
+
+  const rect = canvas.getBoundingClientRect();
+  const bx = x * (canvas.width / rect.width);
+  const by = y * (canvas.height / rect.height);
+
+  if (isRotating) {
+    const dx = bx - selectedAircraft.x;
+    const dy = by - selectedAircraft.y;
+    selectedAircraft.angle = Math.atan2(dy, dx) * 180 / Math.PI + 90;
+  } else {
+    selectedAircraft.x = bx - offset.x;
+    selectedAircraft.y = by - offset.y;
+  }
+  draw();
+}
+
+preloadImages();
+draw();
+</script>
+</body>
+</html>
