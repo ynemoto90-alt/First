@@ -52,6 +52,8 @@ height: auto;
 <button onclick="addAircraft('CJ1')">CJ1</button>
 <button onclick="addAircraft('CJ2')">CJ2</button>
 <button onclick="addAircraft('KingAir')">KingAir</button>
+<button onclick="addAircraft('206')">206</button>
+<button onclick="addAircraft('EC135')">EC135</button>
 </div>
 
 <div class="info">
@@ -86,7 +88,9 @@ const aircraftSpecs = {
 'AS350':{length:12940,width:10700,color:'#2ecc71'},
 'CJ1':{length:12980,width:14140,color:'#e67e22'},
 'CJ2':{length:14530,width:15170,color:'#d35400'},
-'KingAir':{length:14220,width:17650,color:'#e74c3c'}
+'KingAir':{length:14220,width:17650,color:'#e74c3c'},
+'206':{length:8615,width:10972,color:'#1abc9c'},
+'EC135':{length:12160,width:10200,color:'#16a085'}
 };
 
 const images = {};
@@ -96,6 +100,8 @@ function preloadImages(){
     images[key] = new Image();
     if(key === "A36"){
       images[key].src = "https://i.imgur.com/8ZymSyX.jpg";
+    }else if(key === "EC135"){
+      images[key].src = "EC135.png";
     }else{
       images[key].src = key.toLowerCase() + ".png";
     }
