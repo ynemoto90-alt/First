@@ -306,7 +306,7 @@ function getTarget(mx, my) {
     const ry = dx * Math.sin(rad) + dy * Math.cos(rad);
     const handleY = -ac.h / 2 - 20;
 
-    if (Math.sqrt(rx * rx + (ry - handleY) ** 2) < 20) return { ac, type: 'rotate' };
+    if (Math.sqrt(rx * rx + (ry - handleY) ** 2) < 40) return { ac, type: 'rotate' };
     if (Math.abs(rx) < ac.w / 2 && Math.abs(ry) < ac.h / 2) return { ac, type: 'move' };
   }
   return null;
