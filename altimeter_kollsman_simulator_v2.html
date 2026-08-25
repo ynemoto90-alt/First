@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Altimeter / Kollsman Simulator</title>
+<style>
+  :root{
+    --bg:#111417;
+    --panel:#1b2025;
+    --panel2:#242b31;
+    --text:#eef2f5;
+    --muted:#9aa6af;
+    --accent:#d9e1e7;
+    --line:#4b555e;
+    --warn:#e0a94f;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    background:linear-gradient(180deg,#0d1012,#171b1f);
+    color:var(--text);
+    font-family:Segoe UI, "Yu Gothic UI", Meiryo, sans-serif;
+  }
+  .wrap{
+    max-width:1180px;
+    margin:0 auto;
+    padding:24px;
+  }
+  h1{
+    margin:0 0 8px;
+    font-size:28px;
+    letter-spacing:.03em;
+  }
+  .sub{
+    margin:0 0 22px;
+    color:var(--muted);
+    line-height:1.6;
+  }
+  .grid{
+    display:grid;
+    grid-template-columns:minmax(420px, 1.1fr) minmax(340px,.9fr);
+    gap:22px;
+  }
+  .card{
+    background:rgba(27,32,37,.96);
+    border:1px solid #2d353c;
+    border-radius:16px;
+    padding:18px;
+    box-shadow:0 10px 30px rgba(0,0,0,.28);
+  }
+  .instrument-area{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+  }
+  svg{
+    width:min(100%,560px);
+    height:auto;
+    display:block;
+  }
+  .readout-row{
+    margin-top:12px;
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:10px;
+    width:100%;
+  }
+  .readout{
+    background:#121619;
+    border:1px solid #313a42;
+    border-radius:10px;
+    padding:10px 12px;
+  }
+  .readout .lab{
+    color:var(--muted);
+    font-size:12px;
+  }
+  .readout .val{
+    font-variant-numeric:tabular-nums;
+    font-size:20px;
+    margin-top:3px;
+  }
+  .controls h2{
+    font-size:18px;
+    margin:0 0 14px;
+  }
+  .group{
+    background:#151a1e;
+    border:1px solid #2b333a;
+    border-radius:12px;
+    padding:14px;
+    margin-bottom:14px;
+  }
+  .group-title{
+    font-weight:600;
+    margin-bottom:10px;
+  }
+  label{
+    display:block;
+    color:#d8dee3;
+    font-size:13px;
+    margin:10px 0 6px;
+  }
+  input[type=range]{
+    width:100%;
+  }
+  input[type=number], select{
+    width:100%;
+    background:#0f1316;
+    color:var(--text);
+    border:1px solid #3a444d;
+    border-radius:8px;
+    padding:9px 10px;
+    font-size:15px;
+  }
+  .inline{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:10px;
+  }
+  .button-row{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:8px;
+    margin-top:10px;
+  }
+  button{
+    border:1px solid #48535c;
+    background:#222a30;
+    color:var(--text);
+    padding:10px 12px;
+    border-radius:9px;
+    cursor:pointer;
+    font-weight:600;
+  }
+  button:hover{background:#2b343b}
+  .help{
+    color:var(--muted);
+    font-size:12px;
+    line-height:1.6;
+    margin-top:8px;
+  }
+  .formula{
+    background:#101417;
+    border-left:3px solid #68747e;
+    padding:10px 12px;
+    color:#cfd7dd;
+    font-size:13px;
+    line-height:1.6;
+    border-radius:6px;
+  }
+  .status{
+    margin-top:12px;
+    background:#121619;
+    border:1px solid #313a42;
+    border-radius:10px;
+    padding:12px;
+    line-height:1.7;
+  }
+  .status strong{color:#fff}
+  .warn{color:var(--warn)}
+  @media (max-width:900px){
+    .grid{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Altimeter / Kollsman Simulator</h1>
+  <p class="sub">
+    ISA標準大気式を使った教育用シミュレータです。実高度、海面更正気圧(QNH)、Kollsman設定を独立して変更し、
+    静圧と指示高度の関係を確認できます。
+  </p>
+
+  <div class="grid">
+    <section class="card instrument-area">
+      <svg id="altimeter" viewBox="0 0 620 620" aria-label="高度計">
+        <defs>
+          <radialGradient id="faceGrad">
+            <stop offset="0%" stop-color="#2f353a"/>
+            <stop offset="75%" stop-color="#111416"/>
+            <stop offset="100%" stop-color="#050607"/>
+          </radialGradient>
+          <filter id="shadow">
+            <feDropShadow dx="0" dy="4" stdDeviation="4" flood-opacity=".5"/>
+          </filter>
+        </defs>
+
+        <circle cx="310" cy="310" r="286" fill="#090b0c" stroke="#555" stroke-width="10"/>
+        <circle cx="310" cy="310" r="262" fill="url(#faceGrad)" stroke="#1f2428" stroke-width="4"/>
+
+        <g id="ticks"></g>
+        <g id="numbers"></g>
+
+        <text x="310" y="178" text-anchor="middle" fill="#cbd2d7" font-size="18" letter-spacing="2">ALTIMETER</text>
+        <text x="310" y="455" text-anchor="middle" fill="#aab3ba" font-size="14">FT</text>
+
+        <rect x="385" y="273" width="150" height="76" rx="7" fill="#090b0c" stroke="#6e767d" stroke-width="3"/>
+        <text x="460" y="298" text-anchor="middle" fill="#8d989f" font-size="12">KOLLSMAN</text>
+        <text id="kollsmanText" x="460" y="329" text-anchor="middle" fill="#f4f7f9" font-size="28" font-family="Consolas,monospace">1013.3</text>
+
+        <g id="hundredsHand" filter="url(#shadow)">
+          <line x1="310" y1="330" x2="310" y2="94" stroke="#f3f6f8" stroke-width="9" stroke-linecap="round"/>
+          <polygon points="310,68 298,104 322,104" fill="#f3f6f8"/>
+        </g>
+        <g id="thousandsHand" filter="url(#shadow)">
+          <line x1="310" y1="326" x2="310" y2="148" stroke="#d7dde1" stroke-width="12" stroke-linecap="round"/>
+          <polygon points="310,124 296,154 324,154" fill="#d7dde1"/>
+        </g>
+        <g id="tenThousandsHand" filter="url(#shadow)">
+          <line x1="310" y1="322" x2="310" y2="205" stroke="#b9c2c8" stroke-width="18" stroke-linecap="round"/>
+          <polygon points="310,180 294,211 326,211" fill="#b9c2c8"/>
+        </g>
+
+        <circle cx="310" cy="310" r="18" fill="#d9dfe3" stroke="#252a2e" stroke-width="5"/>
+        <circle cx="310" cy="310" r="6" fill="#202428"/>
+
+        <g transform="translate(78,500)">
+          <circle cx="0" cy="0" r="34" fill="#15191c" stroke="#747d84" stroke-width="4"/>
+          <text x="0" y="5" text-anchor="middle" fill="#cbd2d7" font-size="12">SET</text>
+        </g>
+      </svg>
+
+      <div class="readout-row">
+        <div class="readout">
+          <div class="lab">Indicated Altitude</div>
+          <div class="val" id="indicatedReadout">0 ft</div>
+        </div>
+        <div class="readout">
+          <div class="lab">Static Pressure</div>
+          <div class="val" id="staticReadout">1013.25 hPa</div>
+        </div>
+        <div class="readout">
+          <div class="lab">QFE equivalent</div>
+          <div class="val" id="qfeReadout">1013.25 hPa</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card controls">
+      <h2>Controls</h2>
+
+      <div class="group">
+        <div class="group-title">Aircraft / Atmosphere</div>
+        <label for="trueAlt">Aircraft altitude (MSL)</label>
+        <input id="trueAlt" type="range" min="-1000" max="30000" step="10" value="0"/>
+        <input id="trueAltNum" type="number" min="-1000" max="30000" step="10" value="0"/>
+
+        <label>Actual QNH / Sea-level pressure</label>
+        <div class="inline">
+          <div>
+            <input id="qnh" type="number" min="900" max="1100" step="0.1" value="1013.25"/>
+          </div>
+          <div>
+            <select id="qnhUnit">
+              <option value="hpa">hPa</option>
+              <option value="inhg">inHg</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="button-row">
+          <button id="groundBtn">Ground 0 ft</button>
+          <button id="upBtn">+1000 ft</button>
+          <button id="downBtn">-1000 ft</button>
+        </div>
+      </div>
+
+      <div class="group">
+        <div class="group-title">Kollsman Window</div>
+        <div class="inline">
+          <div>
+            <label for="kollsman">Setting</label>
+            <input id="kollsman" type="number" min="850" max="1100" step="0.1" value="1013.25"/>
+          </div>
+          <div>
+            <label for="kollsmanUnit">Setting unit</label>
+            <select id="kollsmanUnit">
+              <option value="hpa">hPa</option>
+              <option value="inhg">inHg</option>
+            </select>
+          </div>
+        </div>
+
+        <label for="unit">Window display unit</label>
+        <select id="unit">
+          <option value="hpa">hPa</option>
+          <option value="inhg">inHg</option>
+        </select>
+
+        <label for="kollsmanRange">Kollsman knob</label>
+        <input id="kollsmanRange" type="range" min="850" max="1100" step="0.1" value="1013.25"/>
+
+        <div class="button-row">
+          <button id="stdBtn">STD 1013.25</button>
+          <button id="qnhBtn">Set QNH</button>
+          <button id="zeroBtn">Set indication 0 ft</button>
+        </div>
+        <div class="help">
+          「Set indication 0 ft」は、現在地点の静圧から、その高度計が0 ftを示すKollsman値を逆算して設定します。
+          地上で実行すればQFEの感覚を確認できます。
+        </div>
+      </div>
+
+      <div class="group">
+        <div class="group-title">Preset Experiment</div>
+        <div class="button-row">
+          <button id="preset1">QNH 1013 / 0 ft</button>
+          <button id="preset2">QNH 1000 / 3000 ft</button>
+          <button id="preset3">33 ft airport</button>
+        </div>
+      </div>
+
+      <div class="status" id="statusBox"></div>
+
+      <div class="formula">
+        <strong>Model</strong><br>
+        Troposphere ISA lapse-rate equation is used. Static pressure is calculated from true MSL altitude and the selected QNH.
+        Indicated altitude is then derived from that static pressure using the Kollsman setting as the reference pressure.
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>
+(() => {
+  const T0 = 288.15;
+  const L = 0.0065;
+  const g = 9.80665;
+  const R = 287.05287;
+  const EXP = g / (R * L); // ~5.25588
+  const FT_TO_M = 0.3048;
+  const HPA_TO_INHG = 0.0295299830714;
+  const INHG_TO_HPA = 1 / HPA_TO_INHG;
+
+  const $ = id => document.getElementById(id);
+
+  const trueAlt = $("trueAlt");
+  const trueAltNum = $("trueAltNum");
+  const qnh = $("qnh");
+  const qnhUnit = $("qnhUnit");
+  const kollsman = $("kollsman");
+  const kollsmanUnit = $("kollsmanUnit");
+  const kollsmanRange = $("kollsmanRange");
+  const unit = $("unit");
+
+  function clamp(v, min, max){ return Math.min(max, Math.max(min, v)); }
+
+  function pressureAtAltitude(hFt, p0Hpa){
+    const h = hFt * FT_TO_M;
+    const term = 1 - (L * h / T0);
+    return p0Hpa * Math.pow(term, EXP);
+  }
+
+  function altitudeFromPressure(pHpa, p0Hpa){
+    const ratio = Math.pow(pHpa / p0Hpa, 1 / EXP);
+    const hM = (T0 / L) * (1 - ratio);
+    return hM / FT_TO_M;
+  }
+
+  function qfeAtAltitude(hFt, qnhHpa){
+    return pressureAtAltitude(hFt, qnhHpa);
+  }
+
+  function inputToHpa(value, u){
+    return u === "inhg" ? value * INHG_TO_HPA : value;
+  }
+
+  function hpaToInput(hpa, u){
+    return u === "inhg" ? hpa * HPA_TO_INHG : hpa;
+  }
+
+  function configurePressureInput(el, u, minHpa, maxHpa){
+    if(u === "inhg"){
+      el.min = (minHpa * HPA_TO_INHG).toFixed(2);
+      el.max = (maxHpa * HPA_TO_INHG).toFixed(2);
+      el.step = "0.01";
+    } else {
+      el.min = minHpa;
+      el.max = maxHpa;
+      el.step = "0.1";
+    }
+  }
+
+  function formatKollsman(hpa){
+    if(unit.value === "inhg"){
+      return (hpa * HPA_TO_INHG).toFixed(2) + " inHg";
+    }
+    return hpa.toFixed(1) + " hPa";
+  }
+
+  function handAngle(value, scale){
+    return (value / scale) * 360;
+  }
+
+  function updateInstrument(){
+    const hTrue = parseFloat(trueAltNum.value);
+    const qnhVal = inputToHpa(parseFloat(qnh.value), qnhUnit.value);
+    const kVal = inputToHpa(parseFloat(kollsman.value), kollsmanUnit.value);
+
+    const staticP = pressureAtAltitude(hTrue, qnhVal);
+    const indicated = altitudeFromPressure(staticP, kVal);
+    const qfe = qfeAtAltitude(hTrue, qnhVal);
+
+    const h100 = ((indicated % 1000) + 1000) % 1000;
+    const h1000 = ((indicated % 10000) + 10000) % 10000;
+    const h10000 = ((indicated % 100000) + 100000) % 100000;
+
+    $("hundredsHand").setAttribute("transform", `rotate(${handAngle(h100, 1000)} 310 310)`);
+    $("thousandsHand").setAttribute("transform", `rotate(${handAngle(h1000, 10000)} 310 310)`);
+    $("tenThousandsHand").setAttribute("transform", `rotate(${handAngle(h10000, 100000)} 310 310)`);
+
+    $("kollsmanText").textContent = unit.value === "inhg"
+      ? (kVal * HPA_TO_INHG).toFixed(2)
+      : kVal.toFixed(1);
+
+    $("indicatedReadout").textContent = `${Math.round(indicated).toLocaleString()} ft`;
+    $("staticReadout").textContent = `${staticP.toFixed(2)} hPa`;
+    $("qfeReadout").textContent = `${qfe.toFixed(2)} hPa`;
+
+    const err = indicated - hTrue;
+    let meaning = "";
+    if(Math.abs(err) < 20){
+      meaning = "Kollsman設定と現在のQNHがほぼ一致しており、指示高度は実高度に近い状態です。";
+    } else if(err > 0){
+      meaning = "高度計は実高度より高く指示しています。設定圧が現在のQNHより高い側です。";
+    } else {
+      meaning = "高度計は実高度より低く指示しています。設定圧が現在のQNHより低い側です。";
+    }
+
+    $("statusBox").innerHTML = `
+      <strong>Aircraft altitude:</strong> ${hTrue.toLocaleString()} ft MSL<br>
+      <strong>QNH:</strong> ${qnhVal.toFixed(2)} hPa<br>
+      <strong>Kollsman:</strong> ${formatKollsman(kVal)}<br>
+      <strong>Indication error:</strong> ${err >= 0 ? "+" : ""}${Math.round(err)} ft<br>
+      <span class="${Math.abs(err) > 500 ? "warn" : ""}">${meaning}</span>
+    `;
+  }
+
+  function syncAltFromRange(){
+    trueAltNum.value = trueAlt.value;
+    updateInstrument();
+  }
+  function syncAltFromNum(){
+    trueAlt.value = clamp(parseFloat(trueAltNum.value || 0), -1000, 30000);
+    updateInstrument();
+  }
+  function syncKFromRange(){
+    const hpa = parseFloat(kollsmanRange.value);
+    const shown = hpaToInput(hpa, kollsmanUnit.value);
+    kollsman.value = kollsmanUnit.value === "inhg" ? shown.toFixed(2) : shown.toFixed(1);
+    updateInstrument();
+  }
+
+  function syncKFromNum(){
+    const hpa = inputToHpa(parseFloat(kollsman.value), kollsmanUnit.value);
+    kollsmanRange.value = clamp(hpa, 850, 1100);
+    updateInstrument();
+  }
+
+  function changeQnhUnit(){
+    const old = qnhUnit.dataset.prev || "hpa";
+    const hpa = inputToHpa(parseFloat(qnh.value), old);
+    configurePressureInput(qnh, qnhUnit.value, 900, 1100);
+    const shown = hpaToInput(hpa, qnhUnit.value);
+    qnh.value = qnhUnit.value === "inhg" ? shown.toFixed(2) : shown.toFixed(1);
+    qnhUnit.dataset.prev = qnhUnit.value;
+    updateInstrument();
+  }
+
+  function changeKollsmanUnit(){
+    const old = kollsmanUnit.dataset.prev || "hpa";
+    const hpa = inputToHpa(parseFloat(kollsman.value), old);
+    configurePressureInput(kollsman, kollsmanUnit.value, 850, 1100);
+    const shown = hpaToInput(hpa, kollsmanUnit.value);
+    kollsman.value = kollsmanUnit.value === "inhg" ? shown.toFixed(2) : shown.toFixed(1);
+    kollsmanRange.value = hpa;
+    kollsmanUnit.dataset.prev = kollsmanUnit.value;
+    updateInstrument();
+  }
+
+  qnhUnit.dataset.prev = "hpa";
+  kollsmanUnit.dataset.prev = "hpa";
+
+  trueAlt.addEventListener("input", syncAltFromRange);
+  trueAltNum.addEventListener("input", syncAltFromNum);
+  qnh.addEventListener("input", updateInstrument);
+  qnhUnit.addEventListener("change", changeQnhUnit);
+  kollsman.addEventListener("input", syncKFromNum);
+  kollsmanUnit.addEventListener("change", changeKollsmanUnit);
+  kollsmanRange.addEventListener("input", syncKFromRange);
+  unit.addEventListener("change", updateInstrument);
+
+  $("groundBtn").addEventListener("click", () => {
+    trueAlt.value = 0; trueAltNum.value = 0; updateInstrument();
+  });
+  $("upBtn").addEventListener("click", () => {
+    const v = clamp(parseFloat(trueAltNum.value) + 1000, -1000, 30000);
+    trueAlt.value = v; trueAltNum.value = v; updateInstrument();
+  });
+  $("downBtn").addEventListener("click", () => {
+    const v = clamp(parseFloat(trueAltNum.value) - 1000, -1000, 30000);
+    trueAlt.value = v; trueAltNum.value = v; updateInstrument();
+  });
+
+  function setKollsmanHpa(hpa){
+    const shown = hpaToInput(hpa, kollsmanUnit.value);
+    kollsman.value = kollsmanUnit.value === "inhg" ? shown.toFixed(2) : shown.toFixed(1);
+    kollsmanRange.value = hpa;
+  }
+
+  function setQnhHpa(hpa){
+    const shown = hpaToInput(hpa, qnhUnit.value);
+    qnh.value = qnhUnit.value === "inhg" ? shown.toFixed(2) : shown.toFixed(1);
+  }
+
+  $("stdBtn").addEventListener("click", () => {
+    setKollsmanHpa(1013.25);
+    updateInstrument();
+  });
+  $("qnhBtn").addEventListener("click", () => {
+    const qnhHpa = inputToHpa(parseFloat(qnh.value), qnhUnit.value);
+    setKollsmanHpa(qnhHpa);
+    updateInstrument();
+  });
+  $("zeroBtn").addEventListener("click", () => {
+    const hTrue = parseFloat(trueAltNum.value);
+    const qnhVal = inputToHpa(parseFloat(qnh.value), qnhUnit.value);
+    const staticP = pressureAtAltitude(hTrue, qnhVal);
+    setKollsmanHpa(staticP);
+    updateInstrument();
+  });
+
+  $("preset1").addEventListener("click", () => {
+    setQnhHpa(1013.25);
+    trueAlt.value = 0; trueAltNum.value = 0;
+    setKollsmanHpa(1013.25);
+    updateInstrument();
+  });
+  $("preset2").addEventListener("click", () => {
+    setQnhHpa(1000.0);
+    trueAlt.value = 3000; trueAltNum.value = 3000;
+    setKollsmanHpa(1013.25);
+    updateInstrument();
+  });
+  $("preset3").addEventListener("click", () => {
+    setQnhHpa(1015.0);
+    trueAlt.value = 33; trueAltNum.value = 33;
+    setKollsmanHpa(1015.0);
+    updateInstrument();
+  });
+
+  function buildDial(){
+    const ticks = $("ticks");
+    const nums = $("numbers");
+
+    for(let i=0;i<50;i++){
+      const a = i * 7.2;
+      const major = i % 5 === 0;
+      const mid = i % 1 === 0;
+      const r1 = major ? 222 : 238;
+      const r2 = 252;
+      const sw = major ? 5 : 2;
+      const rad = (a - 90) * Math.PI/180;
+      const x1 = 310 + Math.cos(rad) * r1;
+      const y1 = 310 + Math.sin(rad) * r1;
+      const x2 = 310 + Math.cos(rad) * r2;
+      const y2 = 310 + Math.sin(rad) * r2;
+      const line = document.createElementNS("http://www.w3.org/2000/svg","line");
+      line.setAttribute("x1",x1); line.setAttribute("y1",y1);
+      line.setAttribute("x2",x2); line.setAttribute("y2",y2);
+      line.setAttribute("stroke","#eef2f4");
+      line.setAttribute("stroke-width",sw);
+      ticks.appendChild(line);
+    }
+
+    for(let n=0;n<10;n++){
+      const a = n * 36;
+      const rad = (a - 90) * Math.PI/180;
+      const r = 195;
+      const x = 310 + Math.cos(rad) * r;
+      const y = 310 + Math.sin(rad) * r + 10;
+      const t = document.createElementNS("http://www.w3.org/2000/svg","text");
+      t.setAttribute("x",x); t.setAttribute("y",y);
+      t.setAttribute("text-anchor","middle");
+      t.setAttribute("fill","#f1f4f6");
+      t.setAttribute("font-size","34");
+      t.setAttribute("font-family","Arial,sans-serif");
+      t.textContent = n;
+      nums.appendChild(t);
+    }
+  }
+
+  buildDial();
+  configurePressureInput(qnh, "hpa", 900, 1100);
+  configurePressureInput(kollsman, "hpa", 850, 1100);
+  updateInstrument();
+})();
+</script>
+</body>
+</html>
