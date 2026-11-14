@@ -59,6 +59,7 @@ height: auto;
 </div>
 
 <div class="info">
+目盛り：1m単位（横は左端0m、縦は上端0m）<br>
 操作：ドラッグで移動 /
 <span class="highlight">青丸ドラッグで回転</span>
 </div>
@@ -236,6 +237,59 @@ function drawHangar() {
   ctx.stroke();
 }
 
+function drawMeasurementRulers() {
+  const cx = canvas.width / 2;
+  const cy = canvas.height / 2;
+  const unit = 1000 * scale;
+
+  ctx.save();
+  ctx.strokeStyle = 'rgba(30, 70, 100, 0.8)';
+  ctx.fillStyle = '#1e4664';
+  ctx.lineWidth = 1;
+  ctx.font = '10px sans-serif';
+
+  ctx.beginPath();
+  ctx.moveTo(0, cy);
+  ctx.lineTo(canvas.width, cy);
+  ctx.moveTo(cx, 0);
+  ctx.lineTo(cx, canvas.height);
+  ctx.stroke();
+
+  function label(text, x, y) {
+    const width = ctx.measureText(text).width;
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+    ctx.fillRect(x - width / 2 - 2, y - 6, width + 4, 12);
+    ctx.fillStyle = '#1e4664';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, x, y);
+  }
+
+  for (let m = 0; m <= W / 1000; m++) {
+    const x = m * unit;
+    const tick = m % 5 === 0 ? 9 : 5;
+    ctx.beginPath();
+    ctx.moveTo(x, cy - tick);
+    ctx.lineTo(x, cy + tick);
+    ctx.stroke();
+    label(String(m), Math.max(7, Math.min(canvas.width - 9, x)), cy + 18);
+  }
+
+  for (let m = 0; m <= H / 1000; m++) {
+    const y = m * unit;
+    const tick = m % 5 === 0 ? 9 : 5;
+    ctx.beginPath();
+    ctx.moveTo(cx - tick, y);
+    ctx.lineTo(cx + tick, y);
+    ctx.stroke();
+    label(String(m), cx - 20, Math.max(7, Math.min(canvas.height - 7, y)));
+  }
+
+  label('m', canvas.width - 9, cy - 18);
+  label('m', cx + 18, 9);
+  ctx.restore();
+}
+
 function draw() {
   drawHangar();
 
@@ -274,6 +328,8 @@ function draw() {
 
     ctx.restore();
   });
+
+  drawMeasurementRulers();
 }
 
 canvas.onmousedown = (e) => down(e.offsetX, e.offsetY);
