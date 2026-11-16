@@ -47,6 +47,7 @@ height: auto;
 <div class="btn-group">
 <button onclick="addAircraft('AW109')">AW109</button>
 <button onclick="addAircraft('A36')">A36</button>
+<button onclick="addAircraft('C172')">C172</button>
 <button onclick="addAircraft('C208B')">C208B</button>
 <button onclick="addAircraft('AS350')">AS350</button>
 <button onclick="addAircraft('CJ1')">CJ1</button>
@@ -96,6 +97,13 @@ const aircraftSpecs = {
     width: 10200,
     color: '#3498db',
     image: 'images/a36.png'
+  },
+  // N/P/R/S represented by 172S dimensions (metres converted to mm).
+  C172: {
+    length: 8280,
+    width: 11000,
+    color: '#95a5a6',
+    image: 'images/C172.png'
   },
   C208B: {
     length: 12700,
