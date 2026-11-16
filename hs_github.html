@@ -35,6 +35,8 @@ height: auto;
 }
 
 .info { font-size: 0.85em; color: #2c3e50; margin-top: 10px; line-height: 1.6; }
+.ruler-row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+#toggleRulers { padding: 6px 12px; font-size: 13px; }
 .highlight { color: #e67e22; font-weight: bold; }
 </style>
 </head>
@@ -60,7 +62,10 @@ height: auto;
 </div>
 
 <div class="info">
-目盛り：1m単位（横は左端0m、縦は上端0m）<br>
+<div class="ruler-row">
+<span>目盛り：1m単位（横は左端0m、縦は上端0m）</span>
+<button id="toggleRulers" type="button" onclick="toggleMeasurementRulers()" aria-pressed="true" aria-controls="hangarCanvas">目盛りを非表示</button>
+</div>
 操作：ドラッグで移動 /
 <span class="highlight">青丸ドラッグで回転</span>
 </div>
@@ -80,6 +85,7 @@ const H = 33000;
 canvas.width = W * scale;
 canvas.height = H * scale;
 
+let showMeasurementRulers = true;
 let aircrafts = [];
 let selectedAircraft = null;
 let isRotating = false;
@@ -245,6 +251,14 @@ function drawHangar() {
   ctx.stroke();
 }
 
+function toggleMeasurementRulers() {
+  showMeasurementRulers = !showMeasurementRulers;
+  const button = document.getElementById('toggleRulers');
+  button.textContent = showMeasurementRulers ? '目盛りを非表示' : '目盛りを表示';
+  button.setAttribute('aria-pressed', String(showMeasurementRulers));
+  draw();
+}
+
 function drawMeasurementRulers() {
   const cx = canvas.width / 2;
   const cy = canvas.height / 2;
@@ -337,7 +351,7 @@ function draw() {
     ctx.restore();
   });
 
-  drawMeasurementRulers();
+  if (showMeasurementRulers) drawMeasurementRulers();
 }
 
 canvas.onmousedown = (e) => down(e.offsetX, e.offsetY);
